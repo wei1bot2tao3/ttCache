@@ -10,8 +10,6 @@ type BuildInMapCache struct {
 	mutex     sync.RWMutex
 	close     chan struct{}
 	onEvicted func(key string, val any)
-	//onEvicted  []func(key string,val any)
-	//为啥不允许注册多个
 }
 
 func NewBuildInMapCache() *BuildInMapCache {
@@ -21,9 +19,9 @@ func NewBuildInMapCache() *BuildInMapCache {
 	return res
 }
 
+// Set 建立一个
 func (b *BuildInMapCache) Set(key string, value interface{}) {
-	//TODO implement me
-	panic("implement me")
+
 }
 
 func (b *BuildInMapCache) Get(key string) (interface{}, bool) {

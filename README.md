@@ -3,6 +3,8 @@
 
 支持 OS 内存 缓存
 
+
 以及 Redis 实现缓存模式
 read-through、write-through、cache-aside、write-back 
+
 以及 都可加 singleflight 机制
