@@ -18,13 +18,3 @@ func NewBuildInMapCache() *BuildInMapCache {
 	}
 	return res
 }
-
-// Set 建立一个
-func (b *BuildInMapCache) Set(key string, value interface{}) {
-
-}
-
-func (b *BuildInMapCache) Get(key string) (interface{}, bool) {
-	//TODO implement me
-	panic("implement me")
-}
