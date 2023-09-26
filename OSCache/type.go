@@ -6,11 +6,9 @@ import (
 )
 
 type Cache interface {
-	Get(ctx context.Context, key string) (interface{}, bool)
-	SetGos(ctx context.Context, key string, value interface{}, expiration time.Duration) error
-	SetOnceGo(ctx context.Context, key string, value interface{}, expiration time.Duration) error
-	SetTimeOut(ctx context.Context, key string, value interface{}, expiration time.Duration) error
-	Delete(ctx context.Context) (interface{}, error)
+	Get(ctx context.Context, key string) (interface{}, error)
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	Delete(ctx context.Context, key string) (interface{}, error)
 }
 
 type item struct {

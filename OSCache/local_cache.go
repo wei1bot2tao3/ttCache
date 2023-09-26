@@ -15,8 +15,15 @@ type BuildInMapCache struct {
 	onEvicted func(key string, val any)
 }
 
-// SetGos 设置过期时间 每设置一个key就开一个goroutine来监控
-func (b *BuildInMapCache) SetGos(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func NewBuildInMapCache(size int) *BuildInMapCache {
+	res := &BuildInMapCache{
+		data: make(map[string]*item, size),
+	}
+	return res
+}
+
+// Set 设置过期时间 每设置一个key就开一个goroutine来监控
+func (b *BuildInMapCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
@@ -30,18 +37,6 @@ func (b *BuildInMapCache) SetGos(ctx context.Context, key string, value interfac
 	b.data[key] = &item{
 		val:      value,
 		deadline: dl,
-	}
-	if expiration > 0 {
-		time.AfterFunc(expiration, func() {
-			b.mutex.Lock()
-			defer b.mutex.Unlock()
-			val, ok := b.data[key]
-			// key 存在 有过期时间 过期时间超过了
-			if ok && !val.deadline.IsZero() && val.deadline.Before(time.Now()) {
-				delete(b.data, key)
-			}
-
-		})
 	}
 
 	return nil
@@ -82,16 +77,33 @@ func (b *BuildInMapCache) SetTimeOut(ctx context.Context, key string, value inte
 func (b *BuildInMapCache) Get(ctx context.Context, key string) (interface{}, error) {
 	b.mutex.RLock()
 	defer b.mutex.RUnlock()
+
 	res, ok := b.data[key]
 	if !ok {
+
 		return nil, errs.NewErrNotfound(key)
 	}
+
 	return res, nil
 }
 
-func (b *BuildInMapCache) Delete(ctx context.Context) (interface{}, error) {
-	//TODO implement me
-	panic("implement me")
+func (b *BuildInMapCache) delete(key string) {
+	itm, ok := b.data[key]
+	if !ok {
+		return
+	}
+	delete(b.data, key)
+	b.onEvicted(key, itm)
+}
+func (b *BuildInMapCache) Delete(ctx context.Context, key string) (interface{}, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	val, ok := b.data[key]
+	if !ok {
+		return nil, errs.NewErrNotfound(key)
+	}
+	b.delete(key)
+	return val, nil
 }
 
 func (b *BuildInMapCache) Close() error {
@@ -106,27 +118,14 @@ func (b *BuildInMapCache) Close() error {
 
 }
 
-type ExpirationDecorator struct {
+// CacheOneGo  一个goroutine来轮训过期时间
+type CacheOneGo struct {
 	cache Cache
 }
 
-func NewExpirationDecoratorOneGo(cache Cache) *ExpirationDecorator {
-	return &ExpirationDecorator{
-		cache: cache,
-	}
-}
-
-func NewBuildInMapCacheGos(size int) *BuildInMapCache {
-	return &BuildInMapCache{
-		data: make(map[string]*item, size),
-	}
-}
-
 // NewBuildInMapCacheOneGo 开启一个go去轮训 所有时间过期的key 然后close后会过期
-func NewBuildInMapCacheOneGo(size int, interval time.Duration) *BuildInMapCache {
-	res := &BuildInMapCache{
-		data: make(map[string]*item, size),
-	}
+func NewBuildInMapCacheOneGo(res *BuildInMapCache, interval time.Duration) *CacheOneGo {
+
 	go func() {
 		ticker := time.NewTicker(interval)
 		for {
@@ -150,5 +149,20 @@ func NewBuildInMapCacheOneGo(size int, interval time.Duration) *BuildInMapCache 
 			}
 		}
 	}()
-	return res
+
+	return &CacheOneGo{
+		cache: res,
+	}
+}
+
+func (c *CacheOneGo) Get(ctx context.Context, key string) (interface{}, error) {
+	return c.cache.Get(ctx, key)
+}
+
+func (c *CacheOneGo) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	return c.cache.Set(ctx, key, value, expiration)
+}
+
+func (c *CacheOneGo) Delete(ctx context.Context, key string) (interface{}, error) {
+	return c.cache.Delete(ctx, key)
 }
