@@ -21,7 +21,7 @@ func TestNewBuildInMapCache(t *testing.T) {
 		expiration time.Duration
 	}{
 		{
-			name:       "cacheOne",
+			name:       "cacheOne 插入一次",
 			key:        "oneKey",
 			value:      "oneValue",
 			wantRes:    "oneValue",
@@ -36,12 +36,22 @@ func TestNewBuildInMapCache(t *testing.T) {
 			},
 		},
 		{
-			name:       "cacheOne",
+			name:       "cacheOne 插入两次",
 			key:        "oneKey",
 			value:      "oneValue",
 			wantRes:    "oneValue",
 			wantErr:    errs.NewErrNotfound("oneKey"),
 			expiration: 3 * time.Second,
+			Cache: func() *CacheOneGo {
+				build := NewBuildInMapCache(10)
+				cache := NewBuildInMapCacheOneGo(build, 5*time.Second)
+				err := cache.Set(ctx, "oneKey", "oneValue", 3*time.Second)
+				require.NoError(t, err)
+				err = cache.Set(ctx, "oneKey", "oneValue", 3*time.Second)
+				assert.Equal(t, errs.ErrKeyExists, err)
+
+				return cache
+			},
 		},
 	}
 	for _, tc := range testCass {
