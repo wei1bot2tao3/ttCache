@@ -2,7 +2,6 @@ package OSCache
 
 import (
 	"context"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -15,7 +14,6 @@ func TestNewBuildInMapCache(t *testing.T) {
 	testCass := []struct {
 		name       string
 		Cache      func() *CacheOneGo
-		buildcache func() *BuildInMapCache
 		key        string
 		value      string
 		wantErr    error
@@ -23,8 +21,15 @@ func TestNewBuildInMapCache(t *testing.T) {
 		expiration time.Duration
 	}{
 		{
-			name: "cacheOne",
-
+			name:       "cacheOne",
+			key:        "oneKey",
+			value:      "oneValue",
+			wantRes:    "oneValue",
+			wantErr:    errs.NewErrNotfound("oneKey"),
+			expiration: 3 * time.Second,
+		},
+		{
+			name:       "cacheOne",
 			key:        "oneKey",
 			value:      "oneValue",
 			wantRes:    "oneValue",
@@ -41,7 +46,7 @@ func TestNewBuildInMapCache(t *testing.T) {
 			res, err := cache.Get(ctx, tc.key)
 			require.NoError(t, err)
 			itme, ok := res.(*item)
-			fmt.Println(ok)
+			assert.True(t, ok)
 			assert.Equal(t, tc.wantRes, itme.val)
 			time.Sleep(6 * time.Second)
 			_, err = cache.Get(ctx, tc.key)

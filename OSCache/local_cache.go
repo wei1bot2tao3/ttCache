@@ -80,7 +80,6 @@ func (b *BuildInMapCache) Get(ctx context.Context, key string) (interface{}, err
 
 	res, ok := b.data[key]
 	if !ok {
-
 		return nil, errs.NewErrNotfound(key)
 	}
 
