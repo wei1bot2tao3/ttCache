@@ -7,7 +7,8 @@ import (
 
 type Cache interface {
 	Get(ctx context.Context, key string) (interface{}, bool)
-	Set(ctx context.Context, key string, value interface{}) error
+	SetGos(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	SetOnceGo(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	SetTimeOut(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Delete(ctx context.Context) (interface{}, error)
 }
