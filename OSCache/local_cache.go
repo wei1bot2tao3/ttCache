@@ -15,6 +15,7 @@ type BuildInMapCache struct {
 	onEvicted func(key string, val any)
 }
 
+// NewBuildInMapCache 返回一个实例
 func NewBuildInMapCache(size int) *BuildInMapCache {
 	res := &BuildInMapCache{
 		data: make(map[string]*item, size),
@@ -41,7 +42,6 @@ func (b *BuildInMapCache) Set(ctx context.Context, key string, value interface{}
 
 	return nil
 }
-
 func (b *BuildInMapCache) SetOneGo(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
@@ -60,7 +60,6 @@ func (b *BuildInMapCache) SetOneGo(ctx context.Context, key string, value interf
 
 	return nil
 }
-
 func (b *BuildInMapCache) SetTimeOut(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
@@ -85,7 +84,6 @@ func (b *BuildInMapCache) Get(ctx context.Context, key string) (interface{}, err
 
 	return res, nil
 }
-
 func (b *BuildInMapCache) delete(key string) {
 	itm, ok := b.data[key]
 	if !ok {
@@ -164,4 +162,30 @@ func (c *CacheOneGo) Set(ctx context.Context, key string, value interface{}, exp
 
 func (c *CacheOneGo) Delete(ctx context.Context, key string) (interface{}, error) {
 	return c.cache.Delete(ctx, key)
+}
+
+// CacheGos 一个key一个goroutine
+type CacheGos struct {
+	Cache Cache
+}
+
+func NewBuildInMapCacheGos(res *BuildInMapCache) *CacheGos {
+	return &CacheGos{
+		Cache: res,
+	}
+}
+
+func (c *CacheGos) Get(ctx context.Context, key string) (interface{}, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *CacheGos) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *CacheGos) Delete(ctx context.Context, key string) (interface{}, error) {
+	//TODO implement me
+	panic("implement me")
 }
