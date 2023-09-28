@@ -42,37 +42,7 @@ func (b *BuildInMapCache) Set(ctx context.Context, key string, value interface{}
 
 	return nil
 }
-func (b *BuildInMapCache) SetOneGo(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
 
-	var dl time.Time
-	if expiration > 0 {
-		dl = time.Now().Add(expiration)
-	}
-	if _, ok := b.data[key]; ok {
-		return errs.ErrKeyExists
-	}
-	b.data[key] = &item{
-		val:      value,
-		deadline: dl,
-	}
-
-	return nil
-}
-func (b *BuildInMapCache) SetTimeOut(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	newItem := &item{
-		val: value,
-	}
-
-	if _, ok := b.data[key]; ok {
-		return errs.ErrKeyExists
-	}
-	b.data[key] = newItem
-	return nil
-}
 func (b *BuildInMapCache) Get(ctx context.Context, key string) (interface{}, error) {
 	b.mutex.RLock()
 	defer b.mutex.RUnlock()
@@ -84,23 +54,26 @@ func (b *BuildInMapCache) Get(ctx context.Context, key string) (interface{}, err
 
 	return res, nil
 }
-func (b *BuildInMapCache) delete(key string) {
+func (b *BuildInMapCache) delete(key string) (interface{}, error) {
 	itm, ok := b.data[key]
 	if !ok {
-		return
+		return nil, errs.NewErrNotfound(key)
 	}
 	delete(b.data, key)
-	b.onEvicted(key, itm)
+
+	return itm, nil
 }
 func (b *BuildInMapCache) Delete(ctx context.Context, key string) (interface{}, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	val, ok := b.data[key]
+	_, ok := b.data[key]
 	if !ok {
 		return nil, errs.NewErrNotfound(key)
 	}
-	b.delete(key)
-	return val, nil
+
+	itm, err := b.delete(key)
+
+	return itm, err
 }
 
 func (b *BuildInMapCache) Close() error {
@@ -117,7 +90,7 @@ func (b *BuildInMapCache) Close() error {
 
 // CacheOneGo  一个goroutine来轮训过期时间
 type CacheOneGo struct {
-	cache Cache
+	Cache Cache
 }
 
 // NewBuildInMapCacheOneGo 开启一个go去轮训 所有时间过期的key 然后close后会过期
@@ -148,20 +121,20 @@ func NewBuildInMapCacheOneGo(res *BuildInMapCache, interval time.Duration) *Cach
 	}()
 
 	return &CacheOneGo{
-		cache: res,
+		Cache: res,
 	}
 }
 
 func (c *CacheOneGo) Get(ctx context.Context, key string) (interface{}, error) {
-	return c.cache.Get(ctx, key)
+	return c.Cache.Get(ctx, key)
 }
 
 func (c *CacheOneGo) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	return c.cache.Set(ctx, key, value, expiration)
+	return c.Cache.Set(ctx, key, value, expiration)
 }
 
 func (c *CacheOneGo) Delete(ctx context.Context, key string) (interface{}, error) {
-	return c.cache.Delete(ctx, key)
+	return c.Cache.Delete(ctx, key)
 }
 
 // CacheGos 一个key一个goroutine
@@ -176,16 +149,63 @@ func NewBuildInMapCacheGos(res *BuildInMapCache) *CacheGos {
 }
 
 func (c *CacheGos) Get(ctx context.Context, key string) (interface{}, error) {
-	//TODO implement me
-	panic("implement me")
+
+	return c.Cache.Get(ctx, key)
 }
 
 func (c *CacheGos) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	//TODO implement me
-	panic("implement me")
+	err := c.Cache.Set(ctx, key, value, expiration)
+	if err != nil {
+
+		return err
+	}
+	if expiration > 0 {
+		go func(ctx context.Context, key string, expiration time.Duration) {
+			time.AfterFunc(expiration, func() {
+				c.Delete(ctx, key)
+			})
+		}(ctx, key, expiration)
+	}
+	return err
 }
 
 func (c *CacheGos) Delete(ctx context.Context, key string) (interface{}, error) {
-	//TODO implement me
-	panic("implement me")
+	val, err := c.Cache.Delete(ctx, key)
+	return val, err
+}
+
+// CacheNoGo 懒惰删除
+type CacheNoGo struct {
+	Cache Cache
+}
+
+func NewBuildInMapCacheNoGo(res *BuildInMapCache) *CacheNoGo {
+	return &CacheNoGo{
+		Cache: res,
+	}
+}
+
+func (c *CacheNoGo) Get(ctx context.Context, key string) (interface{}, error) {
+	Map, err := c.Get(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	node := Map.(*item)
+	if !node.deadline.IsZero() && node.deadline.Before(time.Now()) {
+		_, err = c.Cache.Delete(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errs.NewErrKeyExists(key)
+	}
+	return Map, err
+
+}
+
+func (c *CacheNoGo) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	return c.Cache.Set(ctx, key, value, expiration)
+}
+
+func (c *CacheNoGo) Delete(ctx context.Context, key string) (interface{}, error) {
+	return c.Cache.Delete(ctx, key)
 }

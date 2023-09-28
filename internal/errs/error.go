@@ -15,3 +15,7 @@ func NewErrKeyExists(key string) error {
 func NewErrNotfound(key string) error {
 	return errors.New("key:" + key + "不存在")
 }
+
+func NewExpiredKeyError(key string) error {
+	return errors.New("key:" + key + "过期删除")
+}

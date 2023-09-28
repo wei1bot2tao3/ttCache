@@ -5,20 +5,19 @@ OSCache是一个使用内置的 Map 实现的 Go 缓存包。它提供了各种�
 OSCache 基于Map实现
  使用方法：创建 BuildInMapCache
          请使用NewBuildInMapCache 函数 同时指定大小： 
-         cache := OSCache.NewBuildInMapCache(size)
+         Cache := OSCache.NewBuildInMapCache(size)
         
   一、处理过期时间的三种策略
       1.每个key开一个goroutine盯着执行删除策略
-         创建方法 ：NewBuildInMapCacheGos（cache）
+         创建方法 ：NewBuildInMapCacheGos（Cache）
       2.开一个goroutine定时轮训
-          创建方法 ：NewBuildInMapCacheOneGo（cache, expiration）轮训时间
+          创建方法 ：NewBuildInMapCacheOneGo（Cache, expiration）轮训时间
       3.类似于sql连接，下一次使用时候在检查。
-          创建方法 ：Set
+          创建方法 ：NewBuildInMapCacheNoGO（Cache）
 
     
 
 
 支持 Redis 实现缓存模式
-read-through、write-through、cache-aside、write-back 
-
+read-through、write-through、Cache-aside、write-back
 以及 都可加 singleflight 机制
